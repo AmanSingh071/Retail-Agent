@@ -5,10 +5,13 @@ Centralised retail operations and workforce intelligence prototype for a four-st
 ## Modules
 - Admin dashboard and employee portal
 - Inventory ledger, batch expiry, FEFO alerts and replenishment suggestions
-- Daily sales import and store-level stock reconciliation
+- Daily sales import and store-level sales analytics from Supabase
+- Replenishment proposal queue with admin approval/rejection and review notes
+- Auditable inventory movement event history (separate from stock balances)
 - Demand forecasting: seasonal-naive, moving average, Holt-Winters, ARIMA/SARIMA candidates
-- Attendance: live camera capture, browser geolocation permission, server timestamp, geofence checks and review queue
-- Daily inventory and attendance PDF reports, with admin force-send action
+- Attendance: private camera evidence upload, browser GPS capture, Postgres server timestamp, server-side geofence evaluation and manual review
+- Sales/inventory and attendance PDF reports with admin-triggered email delivery (requires Supabase Edge Function and Resend secrets)
+- Admin-only Auth account provisioning and actual agent activity logs
 - Multi-agent workflow: Import & Validation, Inventory, Forecasting, Attendance Integrity, Reporting agents
 
 ## Demo data
@@ -18,7 +21,8 @@ Synthetic one-year data for four illustrative Whitefield stores and 15 products.
 1. Copy `.env.example` to `.env` and fill Supabase URL and anon key.
 2. Create a Supabase project and run `supabase/migrations/001_initial_schema.sql` in SQL Editor.
 3. Install dependencies with `npm install` and run `npm run dev`.
-4. For email PDFs, deploy the Supabase Edge Function in `supabase/functions/send-daily-reports` and add an email provider secret. Recipient is configured as `aman18031607@gmail.com` in demo settings.
+4. Run migrations `0003_secure_attendance.sql` and `0004_agent_replenishment_audit.sql` in order.
+5. Deploy `create-workspace-user` and `send-daily-reports` Edge Functions; configure server-side secrets as described in `docs/DEPLOY_REMAINING_FEATURES.md`.
 5. Review `docs/SETUP_SUPABASE.md` and `docs/AGENT_ARCHITECTURE.md` before connecting live data.
 
 ## Safety and scope
@@ -29,4 +33,4 @@ Synthetic one-year data for four illustrative Whitefield stores and 15 products.
 - No real employee, customer, supplier or store data should be committed to this public repository.
 
 ## Status
-Phase 1 authentication is implemented: Supabase email/password login, session restoration, logout, profile-based admin/employee gating, and role-based RLS migration. Operational dashboard modules still use clearly labelled synthetic demo data; attendance persistence, live sales/inventory CRUD, and email delivery remain future phases. Synthetic demo data is provided for evaluation only.
+Authentication, live sales analytics/import, product/store management, inventory batches, expiry monitoring, attendance evidence capture, replenishment review, movement history, report exports and execution history are implemented in the application. Supabase migrations and Edge Functions still require deployment in the target Supabase project; PDF email and account provisioning require the listed server secrets. The original source workbook contained aggregate division-level sales only. Synthetic demo records must remain clearly labelled and must never be presented as verified Akshayakalpa operational data.
