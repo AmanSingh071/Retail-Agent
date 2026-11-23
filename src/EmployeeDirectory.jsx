@@ -14,7 +14,7 @@ export default function EmployeeDirectory(){
     <label>EMPLOYEE ID<input required value={form.employee_id} onChange={e=>setForm(v=>({...v,employee_id:e.target.value}))}/></label>
     <label>EMAIL<input required type="email" value={form.email} onChange={e=>setForm(v=>({...v,email:e.target.value}))}/></label>
     <label>ROLE<select value={form.role} onChange={e=>setForm(v=>({...v,role:e.target.value}))}><option value="employee">Employee</option><option value="admin">Admin</option></select></label>
-    <label style={{gridColumn:'1/-1'}}>TEMPORARY PASSWORD (12+ CHARACTERS)<input required minLength={12} type="password" value={form.password} onChange={e=>setForm(v=>({...v,password:e.target.value}))}/></label>
+    <label style={{gridColumn:'1/-1'}}>TEMPORARY PASSWORD (6+ CHARACTERS)<input required minLength={6} type="password" value={form.password} onChange={e=>setForm(v=>({...v,password:e.target.value}))}/></label>
     <button className="primary" disabled={saving}>{saving?'Creating account…':'Create account'}</button>
    </form>{error&&<div className="authError" style={{marginTop:10}}>{error}</div>}{notice&&<div className="notice">{notice}</div>}
   </section>
