@@ -46,3 +46,8 @@ create table if not exists public.inventory_movement_events(
 alter table public.inventory_movement_events enable row level security;
 drop policy if exists "Admins manage inventory movement events" on public.inventory_movement_events;
 create policy "Admins manage inventory movement events" on public.inventory_movement_events for all to authenticated using(public.current_user_role()='admin') with check(public.current_user_role()='admin');
+
+-- Explicit SQL privileges; row-level policies remain the authorization boundary.
+grant select,insert,update,delete on public.agent_activity_logs to authenticated;
+grant select,insert,update,delete on public.replenishment_reviews to authenticated;
+grant select,insert,update,delete on public.inventory_movement_events to authenticated;
