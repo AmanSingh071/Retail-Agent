@@ -88,6 +88,7 @@ return <div className="app"><aside className="side"><div className="brand"><div 
 {profile?.role==='admin'&&<div style={{display:page==='Sales Upload'?'block':'none'}}><SalesImport onNotice={setNotice}/></div>}
 {page==='Attendance'&&<AttendancePanel/>}
 {profile?.role==='admin'&&page==='Employees'&&<EmployeeDirectory/>}
+{profile?.role==='admin'&&page==='Replenishment'&&<ReplenishmentPanel sales={liveSales} batches={liveBatches} stores={liveStores} products={liveProducts} loading={salesLoading||inventoryLoading} error={salesError||inventoryError}/>}
 {profile?.role==='admin'&&page==='Reports'&&<ReportCenter sales={liveSales} stores={liveStores} products={liveProducts} batches={liveBatches} loading={salesLoading||inventoryLoading} error={salesError||inventoryError}/>}
-{profile?.role==='admin'&&page==='Agent Runs'&&<Card title="Agent workflow"><div className="agents">{['Sales File Intake & Validation','Inventory State & FEFO','Demand Forecast Selection','Replenishment & Buffer Calculator','Attendance Integrity','PDF Reporting & Email'].map((x,i)=><div className="agent"key={x}><ShieldCheck/><div><b>{x}</b><small>Tool-driven multi-step task · human review gate</small></div><span>{i<2?'Completed':i===2?'Running':'Queued'}</span></div>)}</div></Card>}
+{profile?.role==='admin'&&page==='Agent Runs'&&<AgentRunsPanel/>}
 <footer>AKSHAYAKALPA RETAIL INTELLIGENCE <span>Independent prototype · Synthetic demo data · {hasSupabase?'Supabase configured':'Local demo mode'}</span></footer></main></div>;}
