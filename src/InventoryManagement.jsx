@@ -38,7 +38,7 @@ export default function InventoryManagement({onSaved,onNotice}){
   const payload={store_id:form.store_id,product_id:form.product_id,batch_code:form.batch_code.trim(),quantity:Number(form.quantity),received_date:form.received_date,expiry_date:form.expiry_date};
   const {error:e2}=await supabase.from('inventory_batches').insert(payload);
   if(e2)setError(e2.message);
-  else{setForm(v=>({...blank,store_id:v.store_id,product_id:v.product_id,received_date:isoToday()}));onNotice?.('Inventory batch saved to Supabase.');await load();onSaved?.();}
+  else{const {data:{user}}=await supabase.auth.getUser();await supabase.from('agent_activity_logs').insert({agent_name:'Inventory State',action:'Batch receipt recorded',status:'completed',input_summary:{store_id:payload.store_id,product_id:payload.product_id,batch_code:payload.batch_code},output_summary:{quantity:payload.quantity,expiry_date:payload.expiry_date},created_by:user?.id});setForm(v=>({...blank,store_id:v.store_id,product_id:v.product_id,received_date:isoToday()}));onNotice?.('Inventory batch saved to Supabase.');await load();onSaved?.();}
   setSaving(false);
  }
  return <div style={{display:'grid',gap:14}}>
