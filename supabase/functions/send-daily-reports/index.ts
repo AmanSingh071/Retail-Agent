@@ -66,7 +66,7 @@ Deno.serve(async req=>{
    metric(page,40,665,120,"Batch quantity",fmt(totalStock),"All recorded batches");metric(page,170,665,120,"Expired quantity",fmt(expiredQty),expired.length+" expired batches");metric(page,300,665,120,"Expiring in 7d",fmt(soonQty),soon.length+" batches");metric(page,430,665,120,"Inventory batches",String(bb.length),"Current batch rows");
    title(page,"Stock and expiry by store",635,font,bold);
    const stockRows=Array.from(stockByStore.entries()).map(([n,v]:any)=>[n,fmt(v.qty),fmt(v.expired),fmt(v.soon)]);
-   if(stockRows.length)table(page,["STORE","ON HAND","EXPIRED","DUE ≤7D"],stockRows,40,610,[220,90,90,90],font,bold);
+   if(stockRows.length)table(page,["STORE","ON HAND","EXPIRED","DUE <=7D"],stockRows,40,610,[220,90,90,90],font,bold);
    else page.drawText("No inventory batches found. Stock, expiry and replenishment analysis cannot be calculated until batches are imported.",{x:42,y:590,size:9,font,color:C.red});
    title(page,"Expired / near-expiry lots",stockRows.length?485:550,font,bold);
    const expiryRows=[...expired,...soon].sort((a:any,b:any)=>a.expiry_date.localeCompare(b.expiry_date)).slice(0,18).map((x:any)=>[(sm.get(x.store_id)?.store_code||"—"),(pm.get(x.product_id)?.sku||"—"),x.batch_code||"—",fmt(x.quantity),dateLabel(x.expiry_date),x.expiry_date<today?"EXPIRED":"DUE SOON"]);
