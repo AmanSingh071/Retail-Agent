@@ -68,23 +68,23 @@ const [liveSales,setLiveSales]=useState([]),[liveStores,setLiveStores]=useState(
 useEffect(()=>{if(profile?.role!=='admin'||!hasSupabase)return;let active=true;async function loadSales(){
  setSalesLoading(true);setSalesError('');
  try{
+  const cutoff=new Date(Date.now()-90*86400000).toISOString().slice(0,10);
   const [{data:ss,error:se},{data:ps,error:pe}]=await Promise.all([
    supabase.from('stores').select('id,store_code,store_name,is_active'),
    supabase.from('products').select('id,sku,product_name,is_active')
   ]);
   if(se||pe)throw new Error(se?.message||pe?.message||'Unable to load store and product masters.');
-  const {count,countError}=await (async()=>{const r=await supabase.from('sales_daily').select('id',{count:'exact',head:true});return {count:r.count,countError:r.error};})();
-  if(countError)throw countError;
-  const totalRows=count||0,chunkSize=1000,offsets=Array.from({length:Math.ceil(totalRows/chunkSize)},(_,i)=>i*chunkSize),allRows=[];
-  for(let i=0;i<offsets.length;i+=4){
-   const batch=offsets.slice(i,i+4);
-   const pages=await Promise.all(batch.map(offset=>supabase.from('sales_daily').select('id,store_id,product_id,sale_date,units_sold,revenue,source_type').order('sale_date',{ascending:false}).order('id',{ascending:false}).range(offset,Math.min(offset+chunkSize-1,totalRows-1))));
-   const failed=pages.find(x=>x.error);if(failed?.error)throw failed.error;
-   for(const result of pages)allRows.push(...(result.data||[]));
+  const countResult=await supabase.from('sales_daily').select('id',{count:'exact',head:true}).gte('sale_date',cutoff);
+  if(countResult.error)throw countResult.error;
+  const totalRows=countResult.count||0,chunkSize=1000,allRows=[];
+  for(let offset=0;offset<totalRows;offset+=chunkSize){
+   const {data,error}=await supabase.from('sales_daily').select('id,store_id,product_id,sale_date,units_sold,revenue,source_type').gte('sale_date',cutoff).order('sale_date',{ascending:false}).order('id',{ascending:false}).range(offset,Math.min(offset+chunkSize-1,totalRows-1));
+   if(error)throw error;
+   allRows.push(...(data||[]));
    if(!active)return;
   }
   if(!active)return;
-  setLiveSales(allRows);setSalesCount(allRows.length);setLiveStores(ss||[]);setLiveProducts(ps||[]);
+  setLiveSales(allRows);setSalesCount(totalRows);setLiveStores(ss||[]);setLiveProducts(ps||[]);
  }catch(e){if(active){setSalesError(e?.message||'Unable to load sales records.');setLiveSales([]);setSalesCount(0);}}
  finally{if(active)setSalesLoading(false);}
  }
