@@ -13,7 +13,7 @@ const required=['sale_date','store_code','sku','units_sold','sales_value_inr'];
 const DRAFT_KEY='retail-agent-sales-import-draft';
 function readDraft(){try{return JSON.parse(sessionStorage.getItem(DRAFT_KEY)||'null');}catch{return null;}}
 function writeDraft(value){try{sessionStorage.setItem(DRAFT_KEY,JSON.stringify(value));}catch{}}
-export default function SalesImport({onNotice}){
+export default function SalesImport({onNotice,onSaved}){
  const [file,setFile]=useState(()=>readDraft()?.fileName||null),[preview,setPreview]=useState(()=>readDraft()?.preview||null),[checking,setChecking]=useState(false),[saving,setSaving]=useState(false),[result,setResult]=useState(()=>readDraft()?.result||null),[error,setError]=useState('');
  async function inspect(f){setFile(f?.name||null);setPreview(null);setResult(null);setError('');if(!f){sessionStorage.removeItem(DRAFT_KEY);return;}if(!f.name.toLowerCase().endsWith('.csv')){setError('Please upload a CSV file. For Excel, use Save As → CSV UTF-8 first.');return;}const parsed=parseCSV(await f.text());const missing=required.filter(k=>!parsed.headers.includes(k));if(missing.length){setError('Missing required columns: '+missing.join(', '));return;}setPreview(parsed);writeDraft({fileName:f.name,preview:parsed,result:null});}
  async function importRows(){if(!preview)return;setChecking(true);setError('');setResult(null);try{
@@ -28,7 +28,7 @@ export default function SalesImport({onNotice}){
   });
   setResult({valid,issues});writeDraft({fileName:file,preview,result:{valid,issues}});if(valid.length===0){setChecking(false);return;}
  }catch(e){setError(e.message);}finally{setChecking(false);}}
- async function save(){if(!result?.valid?.length)return;setSaving(true);setError('');try{const {error}=await supabase.from('sales_daily').insert(result.valid);if(error)throw error;const {data:{user}}=await supabase.auth.getUser();await supabase.from('agent_activity_logs').insert({agent_name:'Sales Intake',action:'CSV import',status:'completed',input_summary:{rows_validated:result.valid.length,rows_rejected:result.issues.length},output_summary:{rows_inserted:result.valid.length},created_by:user?.id});setResult(v=>{const next={...v,inserted:v.valid.length};writeDraft({fileName:file,preview,result:next});return next;});onNotice?.(result.valid.length+' sales rows saved to Supabase.');}catch(e){setError(e.message);}finally{setSaving(false);}}
+ async function save(){if(!result?.valid?.length)return;setSaving(true);setError('');try{const {error}=await supabase.from('sales_daily').insert(result.valid);if(error)throw error;const {data:{user}}=await supabase.auth.getUser();await supabase.from('agent_activity_logs').insert({agent_name:'Sales Intake',action:'CSV import',status:'completed',input_summary:{rows_validated:result.valid.length,rows_rejected:result.issues.length},output_summary:{rows_inserted:result.valid.length},created_by:user?.id});setResult(v=>{const next={...v,inserted:v.valid.length};writeDraft({fileName:file,preview,result:next});return next;});onNotice?.(result.valid.length+' sales rows saved to Supabase.');onSaved?.();}catch(e){setError(e.message);}finally{setSaving(false);}}
  return <div style={{display:'grid',gap:14}}>
   <section className="card"><header><h3>Import store-wise sales CSV</h3></header>
    <p className="subtle">Required columns: sale_date, store_code, sku, units_sold, sales_value_inr. Dates must use YYYY-MM-DD. Store codes and SKUs must already exist and be active.</p>
