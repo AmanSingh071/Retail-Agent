@@ -28,7 +28,7 @@ export default function SalesImport({onNotice}){
   });
   setResult({valid,issues});writeDraft({fileName:file,preview,result:{valid,issues}});if(valid.length===0){setChecking(false);return;}
  }catch(e){setError(e.message);}finally{setChecking(false);}}
- async function save(){if(!result?.valid?.length)return;setSaving(true);setError('');try{const {error}=await supabase.from('sales_daily').insert(result.valid);if(error)throw error;setResult(v=>{const next={...v,inserted:v.valid.length};writeDraft({fileName:file,preview,result:next});return next;});onNotice?.(result.valid.length+' sales rows saved to Supabase.');}catch(e){setError(e.message);}finally{setSaving(false);}}
+ async function save(){if(!result?.valid?.length)return;setSaving(true);setError('');try{const {error}=await supabase.from('sales_daily').insert(result.valid);if(error)throw error;const {data:{user}}=await supabase.auth.getUser();await supabase.from('agent_activity_logs').insert({agent_name:'Sales Intake',action:'CSV import',status:'completed',input_summary:{rows_validated:result.valid.length,rows_rejected:result.issues.length},output_summary:{rows_inserted:result.valid.length},created_by:user?.id});setResult(v=>{const next={...v,inserted:v.valid.length};writeDraft({fileName:file,preview,result:next});return next;});onNotice?.(result.valid.length+' sales rows saved to Supabase.');}catch(e){setError(e.message);}finally{setSaving(false);}}
  return <div style={{display:'grid',gap:14}}>
   <section className="card"><header><h3>Import store-wise sales CSV</h3></header>
    <p className="subtle">Required columns: sale_date, store_code, sku, units_sold, sales_value_inr. Dates must use YYYY-MM-DD. Store codes and SKUs must already exist and be active.</p>
