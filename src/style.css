@@ -21,3 +21,7 @@
 .accountIdentity{font-size:10px;color:#657668;text-align:right}
 .accountIdentity b{display:block;color:#344a39;font-size:11px}
 .signOutButton{border:1px solid #e0e8df;background:white;border-radius:7px;padding:8px 10px;color:#58715d;font:600 10px 'DM Sans',sans-serif;cursor:pointer}
+
+.authRoleChoices{display:grid;grid-template-columns:1fr 1fr;gap:8px;margin:0 0 10px;padding:4px;background:#f1f5f0;border:1px solid #e3ebe1;border-radius:10px}
+.authRoleChoices button{border:0;border-radius:7px;background:transparent;padding:11px 8px;color:#637466;font:700 11px 'DM Sans',sans-serif;cursor:pointer}
+.authRoleChoices button.active{background:#fff;color:#286444;box-shadow:0 1px 5px rgba(30,65,42,.12)}
