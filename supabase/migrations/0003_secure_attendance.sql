@@ -17,6 +17,8 @@ drop policy if exists "Employees read own attendance events" on public.attendanc
 create policy "Employees read own attendance events" on public.attendance_events for select to authenticated using (employee_id=auth.uid());
 drop policy if exists "Admins read attendance events" on public.attendance_events;
 create policy "Admins read attendance events" on public.attendance_events for select to authenticated using (public.current_user_role()='admin');
+drop policy if exists "Admins review attendance events" on public.attendance_events;
+create policy "Admins review attendance events" on public.attendance_events for update to authenticated using (public.current_user_role()='admin') with check (public.current_user_role()='admin');
 drop policy if exists "Admins manage attendance events" on public.attendance_events;
 create policy "Admins manage attendance events" on public.attendance_events for all to authenticated using (public.current_user_role()='admin') with check (public.current_user_role()='admin');
 
