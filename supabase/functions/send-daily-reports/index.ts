@@ -13,14 +13,20 @@ function barChart(page:any,items:{label:string,value:number}[],x:number,y:number
 function lineChart(page:any,items:{label:string,value:number}[],x:number,y:number,w:number,h:number,font:any){if(!items.length)return;const max=Math.max(1,...items.map(a=>a.value)),min=Math.min(0,...items.map(a=>a.value));const px=x+24,py=y+18,pw=w-38,ph=h-38;page.drawLine({start:{x:px,y:py},end:{x:px,y:py+ph},color:C.grid});page.drawLine({start:{x:px,y:py},end:{x:px+pw,y:py},color:C.grid});let prev:any=null;items.forEach((it,i)=>{const xx=px+(items.length===1?0:i*pw/(items.length-1)),yy=py+(it.value-min)/(max-min||1)*ph;if(prev)page.drawLine({start:prev,end:{x:xx,y:yy},thickness:1.7,color:C.green});page.drawCircle({x:xx,y:yy,size:2.5,color:C.green});prev={x:xx,y:yy};if(i%Math.max(1,Math.ceil(items.length/6))===0)page.drawText(it.label,{x:xx-12,y:py-12,size:6,font,color:C.muted});});page.drawText(fmt(max),{x:x,y:py+ph-2,size:6,font,color:C.muted});}
 function table(page:any,headers:string[],rows:string[][],x:number,y:number,widths:number[],font:any,bold:any,rowH=19){let yy=y;let xx=x;headers.forEach((h,i)=>{page.drawRectangle({x:xx,y:yy-4,width:widths[i],height:rowH,color:C.pale});page.drawText(h.slice(0,24),{x:xx+4,y:yy+2,size:6.5,font:bold,color:C.green});xx+=widths[i];});yy-=rowH;for(const row of rows){xx=x;row.forEach((v,i)=>{page.drawText(String(v??"").slice(0,Math.max(8,Math.floor(widths[i]/4.1))),{x:xx+4,y:yy+2,size:6.3,font,color:C.dark});xx+=widths[i];});page.drawLine({start:{x,y:yy},end:{x:x+widths.reduce((a,b)=>a+b,0),y:yy},thickness:.35,color:C.grid});yy-=rowH;if(yy<48)break;}return yy;}
 async function makePdf(kind:string,build:(pdf:any,font:any,bold:any)=>Promise<void>){const pdf=await PDFDocument.create();const font=await pdf.embedFont(StandardFonts.Helvetica),bold=await pdf.embedFont(StandardFonts.HelveticaBold);await build(pdf,font,bold);return await pdf.save();}
+let reportStage="startup";
 Deno.serve(async req=>{
  if(req.method==="OPTIONS")return new Response("ok",{headers:cors});
  try{
+  reportStage="read configuration";
   const url=Deno.env.get("SUPABASE_URL")!,anon=Deno.env.get("SUPABASE_ANON_KEY")!,secret=(Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")||Deno.env.get("PROJECT_SERVICE_KEY"))!,resend=Deno.env.get("RESEND_API_KEY")!,from=Deno.env.get("REPORT_FROM_EMAIL")!;
+  if(!url||!anon||!secret||!resend||!from) throw new Error("Missing required secret(s): "+[["SUPABASE_URL",url],["SUPABASE_ANON_KEY",anon],["service key",secret],["RESEND_API_KEY",resend],["REPORT_FROM_EMAIL",from]].filter(x=>!x[1]).map(x=>x[0]).join(", "));
   const auth=req.headers.get("Authorization");if(!auth)throw new Error("Authentication required");
+  reportStage="validate signed-in admin";
   const caller=createClient(url,anon,{global:{headers:{Authorization:auth}}}),{data:{user},error:ue}=await caller.auth.getUser();if(ue||!user)throw new Error("Invalid session");
   const admin=createClient(url,secret),{data:profile,error:pe}=await admin.from("user_profiles").select("role").eq("id",user.id).single();if(pe||profile?.role!=="admin")return new Response(JSON.stringify({error:"Admin access required"}),{status:403,headers:{...cors,"Content-Type":"application/json"}});
+  reportStage="validate report recipient";
   const body=await req.json().catch(()=>({})),recipient=String(body.recipient||Deno.env.get("REPORT_RECIPIENT")||"").trim();if(!recipient.includes("@"))throw new Error("Configure a valid report recipient");
+  reportStage="load report data";
   const [{data:sales,error:se},{data:batches,error:be},{data:stores,error:ste},{data:products,error:pre},{data:attendance,error:ae},{data:employees,error:ee}]=await Promise.all([
    admin.from("sales_daily").select("sale_date,store_id,product_id,units_sold,revenue,source_type").order("sale_date",{ascending:true}).limit(25000),
    admin.from("inventory_batches").select("store_id,product_id,batch_code,quantity,received_date,expiry_date").order("expiry_date").limit(5000),
@@ -43,6 +49,7 @@ Deno.serve(async req=>{
   const monthly=Array.from(salesByMonth.entries()).sort((a:any,b:any)=>a[0].localeCompare(b[0])).map(([m,v]:any)=>({label:m.slice(5),value:v}));
   const storeBars=Array.from(salesByStore.entries()).map(([name,v]:any)=>({label:name,value:v.revenue})).sort((a:any,b:any)=>b.value-a.value);
   const productBars=inventoryRisk.slice(0,8).map((x:any)=>({label:x.name,value:x.units}));
+  reportStage="generate PDF documents";
   const salesPdf=await makePdf("sales-inventory",async(pdf,font,bold)=>{
    let page=addPage(pdf,"Sales & Inventory Performance","Coverage "+dateLabel(dateMin)+" to "+dateLabel(dateMax)+"  |  "+(ss.length.toLocaleString("en-IN"))+" sales rows  |  Generated "+new Date().toLocaleString("en-IN",{timeZone:"Asia/Kolkata"})+" IST",font,bold,1);
    metric(page,40,665,120,"Net sales",inr(revenue),"Recorded revenue");metric(page,170,665,120,"Units sold",fmt(units),"Recorded units");metric(page,300,665,120,"Stores",String(salesByStore.size),"With sales records");metric(page,430,665,120,"Products",String(salesByProduct.size),"With sales records");
@@ -95,9 +102,10 @@ Deno.serve(async req=>{
    page.drawText("No check-in record is not proof of a holiday or absence. This project has no approved leave calendar or scheduled shift roster.",{x:42,y:25,size:7,font,color:C.red});
   });
   const b64=(bytes:Uint8Array)=>{let out="";for(let i=0;i<bytes.length;i+=0x8000)out+=String.fromCharCode(...bytes.subarray(i,i+0x8000));return btoa(out);};
+  reportStage="send email through Resend";
   const resp=await fetch("https://api.resend.com/emails",{method:"POST",headers:{"Authorization":"Bearer "+resend,"Content-Type":"application/json"},body:JSON.stringify({from,to:[recipient],subject:"Retail Intelligence Management Reports — "+today,html:"<h2>Retail Intelligence management reports</h2><p>Attached are the Sales & Inventory Performance report and Attendance & Field Verification report. Both include charts, detailed tables, data coverage and limitations.</p><p><b>Important:</b> synthetic demo records are labelled and must not be represented as actual company data. No check-in record is not proof of leave or absence.</p>",attachments:[{filename:"sales-inventory-management-report.pdf",content:b64(salesPdf)},{filename:"attendance-management-report.pdf",content:b64(attendancePdf)}]})});
   const result=await resp.json();if(!resp.ok)throw new Error(result.message||"Email provider rejected the report");
   await admin.from("agent_activity_logs").insert({agent_name:"Reporting",action:"Generate detailed charted management PDFs",status:"completed",input_summary:{recipient},output_summary:{sales_rows:ss.length,synthetic_sales_rows:synthetic,inventory_batches:bb.length,attendance_events:aa.length,provider_id:result.id},created_by:user.id});
   return new Response(JSON.stringify({message:"Detailed charted management PDFs emailed successfully.",recipient,records:{sales:ss.length,synthetic_sales:synthetic,batches:bb.length,attendance:aa.length},provider_id:result.id}),{headers:{...cors,"Content-Type":"application/json"}});
- }catch(e){return new Response(JSON.stringify({error:e.message||"Report generation failed"}),{status:400,headers:{...cors,"Content-Type":"application/json"}});}
+ }catch(e){const detail=e instanceof Error?e.message:String(e);console.error("send-daily-reports failed at "+reportStage+": "+detail);return new Response(JSON.stringify({error:detail,stage:reportStage}),{status:500,headers:{...cors,"Content-Type":"application/json"}});}
 });
