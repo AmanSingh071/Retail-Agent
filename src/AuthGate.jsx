@@ -6,22 +6,32 @@ function LoginScreen() {
   const [password, setPassword] = useState('');
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState('');
+  const [loginRole, setLoginRole] = useState('admin');
   async function signIn(event) {
     event.preventDefault(); setBusy(true); setError('');
-    const { error } = await supabase.auth.signInWithPassword({ email: email.trim(), password });
+    const { data, error } = await supabase.auth.signInWithPassword({ email: email.trim(), password });
     if (error) setError(error.message);
+    else {
+      const { data: profile, error: profileError } = await supabase.from('user_profiles').select('role').eq('id', data.user.id).maybeSingle();
+      if (profileError || !profile) { await supabase.auth.signOut(); setError(profileError?.message || 'This account has no workspace profile. Ask the administrator to provision it.'); }
+      else if (profile.role !== loginRole) { await supabase.auth.signOut(); setError(`This account is registered as ${profile.role}. Please choose ${profile.role === 'admin' ? 'Admin' : 'Employee'} Login.`); }
+    }
     setBusy(false);
   }
   return <main className="authShell"><form className="authCard" onSubmit={signIn}>
     <div className="authMark">✦</div><p className="authEyebrow">AKSHAYAKALPA · RETAIL INTELLIGENCE</p>
-    <h1>Welcome back</h1><p className="authIntro">Sign in with your provisioned workspace account.</p>
+    <h1>Welcome back</h1><p className="authIntro">Choose your workspace access, then sign in with your account.</p>
+    <div className="authRoleChoices" role="group" aria-label="Choose login type">
+      <button type="button" className={loginRole==='admin'?'active':''} onClick={()=>{setLoginRole('admin');setError('');}}>Admin Login</button>
+      <button type="button" className={loginRole==='employee'?'active':''} onClick={()=>{setLoginRole('employee');setError('');}}>Employee Login</button>
+    </div>
     {error && <div className="authError" role="alert">{error}</div>}
     <label htmlFor="auth-email">Email address</label>
     <input id="auth-email" type="email" autoComplete="username" required value={email} onChange={e=>setEmail(e.target.value)} placeholder="you@company.com"/>
     <label htmlFor="auth-password">Password</label>
     <input id="auth-password" type="password" autoComplete="current-password" required value={password} onChange={e=>setPassword(e.target.value)} placeholder="Your password"/>
     <button className="authSubmit" type="submit" disabled={busy}>{busy?'Signing in…':'Sign in'}</button>
-    <p className="authFoot">Access is provisioned by an administrator. Public sign-up is disabled.</p>
+    <p className="authFoot">{loginRole==='admin'?'Administrator access to the full retail workspace.':'Employee access to the attendance portal.'} Accounts are created by the administrator; public sign-up is disabled.</p>
   </form></main>;
 }
 
