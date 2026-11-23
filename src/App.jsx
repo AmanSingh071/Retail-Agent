@@ -8,6 +8,7 @@ import SalesImport from './SalesImport';
 import InventoryManagement from './InventoryManagement';
 import EmployeeDirectory from './EmployeeDirectory';
 import ReportCenter from './ReportCenter';
+import AttendancePanel from './AttendancePanel';
 const demo=buildDemo(); const inr=n=>'₹'+Number(n||0).toLocaleString('en-IN',{maximumFractionDigits:2}); const today=()=>new Date().toISOString().slice(0,10);
 
 
@@ -84,7 +85,7 @@ return <div className="app"><aside className="side"><div className="brand"><div 
 {profile?.role==='admin'&&page==='Expiry & Refill'&&<ExpiryRefillPanel batches={liveBatches} products={liveProducts} stores={liveStores} sales={liveSales} loading={inventoryLoading||salesLoading} error={inventoryError||salesError}/>} 
 {profile?.role==='admin'&&page==='Demand Forecast'&&<DemandForecastPanel sales={liveSales} stores={liveStores} products={liveProducts} batches={liveBatches} selectedStore={store} sku={forecastSku} setSku={setForecastSku} horizon={forecastHorizon} setHorizon={setForecastHorizon} leadDays={leadDays} setLeadDays={setLeadDays} loading={salesLoading} error={salesError}/>} 
 {profile?.role==='admin'&&<div style={{display:page==='Sales Upload'?'block':'none'}}><SalesImport onNotice={setNotice}/></div>}
-{page==='Attendance'&&<div className="grid"><Card title="Field employee attendance"><div className="camera">{photo?<img src={photo}alt="Live camera capture"/>:<div><CalendarCheck size={34}/><small>Live camera evidence</small></div>}</div><div className="buttons"><button className="primary"onClick={camera}>Capture photo</button><button className="secondary"onClick={location}><MapPin size={15}/> Capture location</button></div>{loc&&<p className="subtle">GPS {loc.lat.toFixed(5)}, {loc.lng.toFixed(5)} · accuracy ±{Math.round(loc.accuracy)}m</p>}<button className="primary wide"onClick={checkin}>Submit attendance</button><p className="subtle">Production flow must store the image privately and set authoritative time on the server.</p></Card><Card title="Daily attendance snapshot"><Metric icon={Users}label="SCHEDULED"value="12"sub="Synthetic workers"/><Metric icon={CheckCircle2}label="PRESENT"value="10"sub="Illustrative"/><Metric icon={AlertTriangle}label="REVIEW QUEUE"value="2"sub="Human review"tone="warning"/></Card></div>}
+{page==='Attendance'&&<AttendancePanel/>}
 {profile?.role==='admin'&&page==='Employees'&&<EmployeeDirectory/>}
 {profile?.role==='admin'&&page==='Reports'&&<ReportCenter sales={liveSales} stores={liveStores} products={liveProducts} batches={liveBatches} loading={salesLoading||inventoryLoading} error={salesError||inventoryError}/>}
 {profile?.role==='admin'&&page==='Agent Runs'&&<Card title="Agent workflow"><div className="agents">{['Sales File Intake & Validation','Inventory State & FEFO','Demand Forecast Selection','Replenishment & Buffer Calculator','Attendance Integrity','PDF Reporting & Email'].map((x,i)=><div className="agent"key={x}><ShieldCheck/><div><b>{x}</b><small>Tool-driven multi-step task · human review gate</small></div><span>{i<2?'Completed':i===2?'Running':'Queued'}</span></div>)}</div></Card>}
