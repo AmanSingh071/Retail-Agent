@@ -2,21 +2,31 @@ import React, { useEffect, useState } from 'react';
 import { supabase, hasSupabase } from './lib/supabase';
 
 function LoginScreen() {
-  const [email, setEmail] = useState('');
+  const [loginId, setLoginId] = useState('');
   const [password, setPassword] = useState('');
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState('');
   const [loginRole, setLoginRole] = useState('admin');
   async function signIn(event) {
     event.preventDefault(); setBusy(true); setError('');
-    const { data, error } = await supabase.auth.signInWithPassword({ email: email.trim(), password });
-    if (error) setError(error.message);
-    else {
-      const { data: profile, error: profileError } = await supabase.from('user_profiles').select('role').eq('id', data.user.id).maybeSingle();
-      if (profileError || !profile) { await supabase.auth.signOut(); setError(profileError?.message || 'This account has no workspace profile. Ask the administrator to provision it.'); }
-      else if (profile.role !== loginRole) { await supabase.auth.signOut(); setError(`This account is registered as ${profile.role}. Please choose ${profile.role === 'admin' ? 'Admin' : 'Employee'} Login.`); }
-    }
-    setBusy(false);
+    try {
+      if (loginRole === 'employee') {
+        const { data, error } = await supabase.functions.invoke('employee-login', { body: { employee_id: loginId.trim(), password } });
+        if (error) throw error;
+        if (data?.error) throw new Error(data.error);
+        if (!data?.session) throw new Error('Employee login could not be completed.');
+        const { error: sessionError } = await supabase.auth.setSession(data.session);
+        if (sessionError) throw sessionError;
+      } else {
+        const { error } = await supabase.auth.signInWithPassword({ email: loginId.trim(), password });
+        if (error) throw error;
+        const { data: { user } } = await supabase.auth.getUser();
+        const { data: profile, error: profileError } = await supabase.from('user_profiles').select('role').eq('id', user.id).maybeSingle();
+        if (profileError || !profile) { await supabase.auth.signOut(); throw new Error(profileError?.message || 'This account has no workspace profile.'); }
+        if (profile.role !== 'admin') { await supabase.auth.signOut(); throw new Error('This account is not an administrator. Choose Employee Login.'); }
+      }
+    } catch (e) { setError(e.message || 'Unable to sign in.'); }
+    finally { setBusy(false); }
   }
   return <main className="authShell"><form className="authCard" onSubmit={signIn}>
     <div className="authMark">✦</div><p className="authEyebrow">AKSHAYAKALPA · RETAIL INTELLIGENCE</p>
@@ -26,8 +36,8 @@ function LoginScreen() {
       <button type="button" className={loginRole==='employee'?'active':''} onClick={()=>{setLoginRole('employee');setError('');}}>Employee Login</button>
     </div>
     {error && <div className="authError" role="alert">{error}</div>}
-    <label htmlFor="auth-email">Email address</label>
-    <input id="auth-email" type="email" autoComplete="username" required value={email} onChange={e=>setEmail(e.target.value)} placeholder="you@company.com"/>
+    <label htmlFor="auth-email">{loginRole==='admin'?'Email address':'Employee ID'}</label>
+    <input id="auth-email" type="text" autoComplete="username" required value={loginId} onChange={e=>setLoginId(e.target.value)} placeholder={loginRole==='admin'?'admin@example.com':'Enter your employee ID'}/>
     <label htmlFor="auth-password">Password</label>
     <input id="auth-password" type="password" autoComplete="current-password" required value={password} onChange={e=>setPassword(e.target.value)} placeholder="Your password"/>
     <button className="authSubmit" type="submit" disabled={busy}>{busy?'Signing in…':'Sign in'}</button>
