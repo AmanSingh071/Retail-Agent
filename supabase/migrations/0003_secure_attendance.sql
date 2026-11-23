@@ -53,3 +53,6 @@ begin
 end; $$;
 revoke all on function public.submit_attendance_event(uuid,text,double precision,double precision,double precision) from public;
 grant execute on function public.submit_attendance_event(uuid,text,double precision,double precision,double precision) to authenticated;
+
+-- Employees may read only their own rows through RLS; RPC performs inserts as the function owner.
+grant select on public.attendance_events to authenticated;
