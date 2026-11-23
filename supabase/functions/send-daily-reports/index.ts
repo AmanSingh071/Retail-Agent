@@ -16,7 +16,7 @@ async function makePdf(kind:string,build:(pdf:any,font:any,bold:any)=>Promise<vo
 Deno.serve(async req=>{
  if(req.method==="OPTIONS")return new Response("ok",{headers:cors});
  try{
-  const url=Deno.env.get("SUPABASE_URL")!,anon=Deno.env.get("SUPABASE_ANON_KEY")!,secret=Deno.env.get("PROJECT_SERVICE_KEY")!,resend=Deno.env.get("RESEND_API_KEY")!,from=Deno.env.get("REPORT_FROM_EMAIL")!;
+  const url=Deno.env.get("SUPABASE_URL")!,anon=Deno.env.get("SUPABASE_ANON_KEY")!,secret=(Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")||Deno.env.get("PROJECT_SERVICE_KEY"))!,resend=Deno.env.get("RESEND_API_KEY")!,from=Deno.env.get("REPORT_FROM_EMAIL")!;
   const auth=req.headers.get("Authorization");if(!auth)throw new Error("Authentication required");
   const caller=createClient(url,anon,{global:{headers:{Authorization:auth}}}),{data:{user},error:ue}=await caller.auth.getUser();if(ue||!user)throw new Error("Invalid session");
   const admin=createClient(url,secret),{data:profile,error:pe}=await admin.from("user_profiles").select("role").eq("id",user.id).single();if(pe||profile?.role!=="admin")return new Response(JSON.stringify({error:"Admin access required"}),{status:403,headers:{...cors,"Content-Type":"application/json"}});
