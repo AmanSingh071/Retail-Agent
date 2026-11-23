@@ -29,4 +29,4 @@ Synthetic one-year data for four illustrative Whitefield stores and 15 products.
 - No real employee, customer, supplier or store data should be committed to this public repository.
 
 ## Status
-Prototype scaffold. Connect Supabase and email provider secrets to enable persistence and delivery. Synthetic demo data is provided for evaluation only.
+Phase 1 authentication is implemented: Supabase email/password login, session restoration, logout, profile-based admin/employee gating, and role-based RLS migration. Operational dashboard modules still use clearly labelled synthetic demo data; attendance persistence, live sales/inventory CRUD, and email delivery remain future phases. Synthetic demo data is provided for evaluation only.
