@@ -65,7 +65,31 @@ export default function App({user,profile,onSignOut}){const [page,setPage]=useSt
 const [forecastSku,setForecastSku]=useState(''),[forecastHorizon,setForecastHorizon]=useState(7),[leadDays,setLeadDays]=useState(2);
 const [salesVersion,setSalesVersion]=useState(0); // refresh live sales after a successful CSV import
 const [liveSales,setLiveSales]=useState([]),[liveStores,setLiveStores]=useState([]),[liveProducts,setLiveProducts]=useState([]),[salesLoading,setSalesLoading]=useState(false),[salesError,setSalesError]=useState(''),[salesCount,setSalesCount]=useState(0);
-useEffect(()=>{if(profile?.role!=='admin'||!hasSupabase)return;let active=true;async function loadSales(){setSalesLoading(true);setSalesError('');const [{data:ss,error:se},{data:ps,error:pe}]=await Promise.all([supabase.from('stores').select('id,store_code,store_name,is_active'),supabase.from('products').select('id,sku,product_name,is_active')]);if(!active)return;if(se||pe){setSalesError(se?.message||pe?.message||'Unable to load sales.');setSalesLoading(false);return;}const allRows=[];let offset=0,fetchError=null;while(true){const {data:page,error:pageError}=await supabase.from('sales_daily').select('id,store_id,product_id,sale_date,units_sold,revenue,source_type').order('sale_date',{ascending:false}).range(offset,offset+999);if(pageError){fetchError=pageError;break;}allRows.push(...(page||[]));if(!page||page.length<1000)break;offset+=1000;if(!active)return;}if(!active)return;if(fetchError)setSalesError(fetchError.message||'Unable to load sales.');else{setLiveSales(allRows);setSalesCount(allRows.length);setLiveStores(ss||[]);setLiveProducts(ps||[]);}setSalesLoading(false);}loadSales();return()=>{active=false;};},[profile?.role,salesVersion]);
+useEffect(()=>{if(profile?.role!=='admin'||!hasSupabase)return;let active=true;async function loadSales(){
+ setSalesLoading(true);setSalesError('');
+ try{
+  const [{data:ss,error:se},{data:ps,error:pe}]=await Promise.all([
+   supabase.from('stores').select('id,store_code,store_name,is_active'),
+   supabase.from('products').select('id,sku,product_name,is_active')
+  ]);
+  if(se||pe)throw new Error(se?.message||pe?.message||'Unable to load store and product masters.');
+  const {count,countError}=await (async()=>{const r=await supabase.from('sales_daily').select('id',{count:'exact',head:true});return {count:r.count,countError:r.error};})();
+  if(countError)throw countError;
+  const totalRows=count||0,chunkSize=1000,offsets=Array.from({length:Math.ceil(totalRows/chunkSize)},(_,i)=>i*chunkSize),allRows=[];
+  for(let i=0;i<offsets.length;i+=4){
+   const batch=offsets.slice(i,i+4);
+   const pages=await Promise.all(batch.map(offset=>supabase.from('sales_daily').select('id,store_id,product_id,sale_date,units_sold,revenue,source_type').order('sale_date',{ascending:false}).order('id',{ascending:false}).range(offset,Math.min(offset+chunkSize-1,totalRows-1))));
+   const failed=pages.find(x=>x.error);if(failed?.error)throw failed.error;
+   for(const result of pages)allRows.push(...(result.data||[]));
+   if(!active)return;
+  }
+  if(!active)return;
+  setLiveSales(allRows);setSalesCount(allRows.length);setLiveStores(ss||[]);setLiveProducts(ps||[]);
+ }catch(e){if(active){setSalesError(e?.message||'Unable to load sales records.');setLiveSales([]);setSalesCount(0);}}
+ finally{if(active)setSalesLoading(false);}
+ }
+ loadSales();return()=>{active=false;};
+},[profile?.role,salesVersion]);
 const filteredSales=useMemo(()=>liveSales.filter(x=>(store==='All stores'||liveStores.find(s=>s.id===x.store_id)?.store_name===store)&&x.sale_date>=new Date(Date.now()-period*864e5).toISOString().slice(0,10)),[liveSales,liveStores,store,period]);
 const total=filteredSales.reduce((a,x)=>a+Number(x.units_sold||0),0),revenue=filteredSales.reduce((a,x)=>a+Number(x.revenue||0),0);
 const series=useMemo(()=>{const m=new Map();filteredSales.forEach(x=>{const v=m.get(x.sale_date)||{date:x.sale_date,units:0,revenue:0};v.units+=Number(x.units_sold||0);v.revenue+=Number(x.revenue||0);m.set(x.sale_date,v);});return [...m.values()].sort((a,b)=>a.date.localeCompare(b.date)).slice(-30);},[filteredSales]);
