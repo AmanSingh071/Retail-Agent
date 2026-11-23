@@ -48,6 +48,7 @@ begin
  end if;
  insert into public.attendance_events(employee_id,store_id,photo_path,latitude,longitude,accuracy_m,status,review_reason)
  values(auth.uid(),p_store_id,p_photo_path,p_latitude,p_longitude,p_accuracy_m,st,reason) returning * into result;
+ insert into public.agent_activity_logs(agent_name,action,status,input_summary,output_summary,created_by,completed_at) values('Attendance Integrity','Employee check-in',case when st='accepted' then 'completed' else 'needs_review' end,jsonb_build_object('store_id',p_store_id,'accuracy_m',p_accuracy_m),jsonb_build_object('attendance_event_id',result.id,'status',st,'review_reason',reason),auth.uid(),now());
  return result;
 end; $$;
 revoke all on function public.submit_attendance_event(uuid,text,double precision,double precision,double precision) from public;
