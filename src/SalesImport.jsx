@@ -72,11 +72,11 @@ export default function SalesImport({onNotice,onSaved}){
  async function save(){
   if(!result?.valid?.length)return;setSaving(true);setError('');
   try{
-   const {error}=await supabase.from('sales_daily').insert(result.valid);if(error)throw error;
+   const {data:insertedRows,error}=await supabase.from('sales_daily').upsert(result.valid,{onConflict:'sale_date,store_id,product_id',ignoreDuplicates:true}).select('id');if(error)throw error;
    const {data:{user}}=await supabase.auth.getUser();
    await supabase.from('agent_activity_logs').insert({agent_name:'Sales Intake',action:'Sales file import',status:'completed',input_summary:{file_name:file,rows_validated:result.valid.length,rows_rejected:result.issues.length},output_summary:{rows_inserted:result.valid.length},created_by:user?.id});
-   setResult(v=>{const next={...v,inserted:v.valid.length};writeDraft({fileName:file,preview,result:next});return next;});
-   onNotice?.(result.valid.length+' sales rows saved to Supabase.');onSaved?.();
+   setResult(v=>{const next={...v,inserted:insertedRows?.length||0};writeDraft({fileName:file,preview,result:next});return next;});
+   onNotice?.((insertedRows?.length||0)+' new sales rows saved; existing store/SKU/date records were skipped.');onSaved?.();
   }catch(e){setError(e.message);}finally{setSaving(false);}
  }
  return <div style={{display:'grid',gap:14}}>
